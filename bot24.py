@@ -75,23 +75,23 @@ def main():
 
     while True:
         minimum = min(list(times))
-        logger.info('Sleeping for %s' % (minimum - time.time()))
+        logger.info('Sleeping for %s...' % (minimum - time.time()))
         time.sleep(minimum - time.time() + 15)
         things_to_queue = []
         for time_val, job in dict(times).iteritems():
             if time_val > time.time():
-                logger.info('Queuing %s' % job.name)
+                logger.info('Queuing %s...' % job.name)
                 things_to_queue.append(job)
             del times[time_val]
             ctab = crontab.CronTab(job.schedule)
             times[time.time() + ctab.next()] = job
         for job in things_to_queue:
             if job.running:
-                logger.info('Starting a thread for %s' % job.name)
+                logger.info('Starting %s...' % job.name)
                 thread = JobThread(job)
                 thread.start()
             else:
-                logger.info('Not starting a new %s - already running' % job.name)
+                logger.info('Not starting %s - already running' % job.name)
 
 if __name__ == '__main__':
     main()
