@@ -32,7 +32,7 @@ import time
 import crontab
 import threading
 
-from roles import clean_sandbox
+from roles import testing, testing2
 
 # Setup log file
 cur_dir = os.path.dirname(os.path.abspath(__file__))
@@ -49,44 +49,46 @@ out_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname
 logger.addHandler(out_handler)
 
 roles = [
-    clean_sandbox.SandboxBot
+    testing.TestBot,
+    testing2.Test2Bot
 ]
+
+jobs = {}
+for role in roles:
+    jobs[role.name] = role
 
 
 class JobThread(threading.Thread):
     def __init__(self, job):
-        super(JobThread).__init__()
-        self.job = job
+        super(JobThread, self).__init__()
+        self.job = job()
 
     def run(self):
-        getattr(self, self.run_method)()
+        getattr(self.job, self.job.run_method)('-family:wikipedia', '-lang:en')
 
 
-def main():
-    jobs = {}
-    for role in roles:
-        jobs[role.name] = role
-
-    # First cron time schedule
+def schedule():
     times = {}
     for job in jobs.values():
         ctab = crontab.CronTab(job.schedule)
         times[time.time() + ctab.next()] = job
+    return times
 
+
+def main():
     while True:
+        times = schedule()
         minimum = min(list(times))
         logger.info('Sleeping for %s...' % (minimum - time.time()))
-        time.sleep(minimum - time.time() + 15)
+        time.sleep(minimum - time.time())
         things_to_queue = []
         for time_val, job in dict(times).iteritems():
-            if time_val > time.time():
+            if time_val <= time.time():
                 logger.info('Queuing %s...' % job.name)
                 things_to_queue.append(job)
             del times[time_val]
-            ctab = crontab.CronTab(job.schedule)
-            times[time.time() + ctab.next()] = job
         for job in things_to_queue:
-            if job.running:
+            if job.running is False:
                 logger.info('Starting %s...' % job.name)
                 thread = JobThread(job)
                 thread.start()
