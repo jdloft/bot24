@@ -1,3 +1,0 @@
-[submodule "pywikibot-core"]
-	path = pywikibot-core
-	url = https://gerrit.wikimedia.org/r/pywikibot/core.git

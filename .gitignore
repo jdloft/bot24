@@ -64,10 +64,3 @@ docs/_build/
 
 # PyBuilder
 target/
-
-# Pywikibot
-user-config.py
-apicache/
-throttle.ctrl
-pywikibot.lwp
-

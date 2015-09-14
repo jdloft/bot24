@@ -31,8 +31,7 @@ from logging.handlers import TimedRotatingFileHandler
 import time
 import crontab
 import threading
-
-from roles import testing, testing2
+import yaml
 
 # Setup log file
 cur_dir = os.path.dirname(os.path.abspath(__file__))
@@ -48,14 +47,16 @@ out_handler.setLevel(logging.INFO)  # only see INFO messages
 out_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))  # stdout format
 logger.addHandler(out_handler)
 
-roles = [
-    testing.TestBot,
-    testing2.Test2Bot
-]
+# Setup data file
+with open(os.path.abspath("config.yaml")) as conf:
+    config = yaml.load(conf)
 
-jobs = {}
-for role in roles:
-    jobs[role.name] = role
+jobs = []
+schedules = []
+
+for i in range(len(config["roles"])):
+    jobs.append(getattr(getattr(__import__('roles', fromlist=[config["roles"][i]["module"]]), config["roles"][i]["module"]), config["roles"][i]["class"])())
+    schedules.append(config["roles"][i]["schedule"])
 
 
 class JobThread(threading.Thread):
@@ -64,36 +65,45 @@ class JobThread(threading.Thread):
         self.job = job()
 
     def run(self):
-        getattr(self.job, self.job.run_method)('-family:wikipedia', '-lang:en')
+        self.job.run()
 
 
 def schedule():
     times = {}
-    for job in jobs.values():
-        ctab = crontab.CronTab(job.schedule)
-        times[time.time() + ctab.next()] = job
+    for i in range(len(jobs)):
+        ctab = crontab.CronTab(schedules[i])
+        times[time.time() + ctab.next()] = jobs[i]
     return times
+
+running = {}
 
 
 def main():
+    for job in jobs:
+        running[job.__name__] = None
     while True:
         times = schedule()
         minimum = min(list(times))
-        logger.info('Sleeping for %s...' % (minimum - time.time()))
+        logger.info('Sleeping for %s seconds...' % (int(minimum - time.time())))
         time.sleep(minimum - time.time())
         things_to_queue = []
         for time_val, job in dict(times).iteritems():
             if time_val <= time.time():
-                logger.info('Queuing %s...' % job.name)
+                logger.info('Queuing %s...' % job.__name__)
                 things_to_queue.append(job)
             del times[time_val]
         for job in things_to_queue:
-            if job.running is False:
-                logger.info('Starting %s...' % job.name)
-                thread = JobThread(job)
-                thread.start()
+            if running[job.__name__] is None:  # not running
+                logger.info('Starting %s...' % job.__name__)
+                running[job.__name__] = JobThread(job)
+                running[job.__name__].start()
+            elif running[job.__name__].isAlive() is False:
+                running[job.__name__] = None
+                logger.info('Starting %s...' % job.__name__)
+                running[job.__name__] = JobThread(job)
+                running[job.__name__].start()
             else:
-                logger.info('Not starting %s - already running' % job.name)
+                logger.info('Not starting %s, already running' % job.__name__)
 
 if __name__ == '__main__':
     main()

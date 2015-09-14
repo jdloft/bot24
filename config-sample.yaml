@@ -1,0 +1,7 @@
+username: ""
+password: ""
+roles:
+    -
+        class: "SandboxBot"
+        module: "clean_sandbox"
+        schedule: "* * * * *"
