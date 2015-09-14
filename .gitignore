@@ -64,3 +64,6 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# Bot24 logs
+logs/
