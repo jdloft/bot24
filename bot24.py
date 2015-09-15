@@ -55,8 +55,8 @@ jobs = {}
 schedules = {}
 
 for i in range(len(config["roles"])):
-    jobs[config["roles"][i]["class"]] = getattr(__import__('roles', fromlist=[config["roles"][i]["module"]]), config["roles"][i]["module"])
-    schedules[config["roles"][i]["class"]] = config["roles"][i]["schedule"]
+    jobs[config["roles"][i]["name"]] = getattr(__import__('roles', fromlist=[config["roles"][i]["module"]]), config["roles"][i]["module"])
+    schedules[config["roles"][i]["name"]] = config["roles"][i]["schedule"]
 
 
 class JobThread(threading.Thread):

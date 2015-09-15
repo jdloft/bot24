@@ -2,6 +2,6 @@ username: ""
 password: ""
 roles:
     -
-        class: "SandboxBot"
+        name: "SandboxBot"
         module: "clean_sandbox"
         schedule: "* * * * *"
