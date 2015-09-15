@@ -65,5 +65,11 @@ docs/_build/
 # PyBuilder
 target/
 
-# Bot24 logs
+# Bot24 config and logs
 logs/
+config.yaml
+
+# Pywikibot files
+apicache/
+throttle.ctrl
+user-config.py
