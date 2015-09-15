@@ -51,59 +51,60 @@ logger.addHandler(out_handler)
 with open(os.path.abspath("config.yaml")) as conf:
     config = yaml.load(conf)
 
-jobs = []
-schedules = []
+jobs = {}
+schedules = {}
 
 for i in range(len(config["roles"])):
-    jobs.append(getattr(getattr(__import__('roles', fromlist=[config["roles"][i]["module"]]), config["roles"][i]["module"]), config["roles"][i]["class"])())
-    schedules.append(config["roles"][i]["schedule"])
+    jobs[config["roles"][i]["class"]] = getattr(__import__('roles', fromlist=[config["roles"][i]["module"]]), config["roles"][i]["module"])
+    schedules[config["roles"][i]["class"]] = config["roles"][i]["schedule"]
 
 
 class JobThread(threading.Thread):
     def __init__(self, job):
         super(JobThread, self).__init__()
-        self.job = job()
+        self.daemon = True
+        self.job = job
 
     def run(self):
-        self.job.run()
+        self.job.main()
 
 
 def schedule():
     times = {}
-    for i in range(len(jobs)):
-        ctab = crontab.CronTab(schedules[i])
-        times[time.time() + ctab.next()] = jobs[i]
+    for job_name in jobs.iterkeys():
+        ctab = crontab.CronTab(schedules[job_name])
+        times[time.time() + ctab.next()] = job_name
     return times
 
 running = {}
 
 
 def main():
-    for job in jobs:
-        running[job.__name__] = None
+    for job_name, job in jobs.iteritems():
+        running[job_name] = None
     while True:
         times = schedule()
         minimum = min(list(times))
         logger.info('Sleeping for %s seconds...' % (int(minimum - time.time())))
         time.sleep(minimum - time.time())
         things_to_queue = []
-        for time_val, job in dict(times).iteritems():
+        for time_val, job_name in dict(times).iteritems():
             if time_val <= time.time():
-                logger.info('Queuing %s...' % job.__name__)
-                things_to_queue.append(job)
+                logger.info('Queuing %s...' % job_name)
+                things_to_queue.append(job_name)
             del times[time_val]
-        for job in things_to_queue:
-            if running[job.__name__] is None:  # not running
-                logger.info('Starting %s...' % job.__name__)
-                running[job.__name__] = JobThread(job)
-                running[job.__name__].start()
-            elif running[job.__name__].isAlive() is False:
-                running[job.__name__] = None
-                logger.info('Starting %s...' % job.__name__)
-                running[job.__name__] = JobThread(job)
-                running[job.__name__].start()
+        for job_name in things_to_queue:
+            if running[job_name] is None:  # not running
+                logger.info('Starting %s...' % job_name)
+                running[job_name] = JobThread(jobs[job_name])
+                running[job_name].start()
+            elif running[job_name].isAlive() is False:
+                running[job_name] = None
+                logger.info('Starting %s...' % job_name)
+                running[job_name] = JobThread(jobs[job_name])
+                running[job_name].start()
             else:
-                logger.info('Not starting %s, already running' % job.__name__)
+                logger.info('Not starting %s, already running' % job_name)
 
 if __name__ == '__main__':
     main()
