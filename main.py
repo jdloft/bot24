@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # Bot24 - A bot for performing misc tasks on Wikimedia sites
-# bot24.py - Task dispatcher
+# main.py - Task dispatcher
 # Copyright (C) 2015 Jamison Lofthouse
 #
 # This file is part of Bot24.
