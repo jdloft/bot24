@@ -68,6 +68,7 @@ target/
 # Bot24 config and logs
 logs/
 config.yaml
+password-config.py
 
 # Pywikibot files
 apicache/
