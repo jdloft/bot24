@@ -54,9 +54,9 @@ with open(os.path.abspath("config.yaml")) as conf:
 jobs = {}
 schedules = {}
 
-for i in range(len(config["roles"])):
-    jobs[config["roles"][i]["name"]] = getattr(__import__('roles', fromlist=[config["roles"][i]["module"]]), config["roles"][i]["module"])
-    schedules[config["roles"][i]["name"]] = config["roles"][i]["schedule"]
+for i in range(len(config["scripts"])):
+    jobs[config["scripts"][i]["name"]] = getattr(__import__('scripts', fromlist=[config["scripts"][i]["module"]]), config["scripts"][i]["module"])
+    schedules[config["scripts"][i]["name"]] = config["scripts"][i]["schedule"]
 
 
 class JobThread(threading.Thread):

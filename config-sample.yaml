@@ -1,6 +1,4 @@
-username: ""
-password: ""
-roles:
+scripts:
     -
         name: "SandboxBot"
         module: "clean_sandbox"
