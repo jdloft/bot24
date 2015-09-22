@@ -58,6 +58,18 @@ for i in range(len(config["scripts"])):
     jobs[config["scripts"][i]["name"]] = getattr(__import__('scripts', fromlist=[config["scripts"][i]["module"]]), config["scripts"][i]["module"])
     schedules[config["scripts"][i]["name"]] = config["scripts"][i]["schedule"]
 
+class StreamToLogger(object):
+    def __init__(self, logger, log_level=logging.INFO):
+        self.logger = logger
+        self.log_level = log_level
+        self.linebuf = ''
+
+    def write(self, buf):
+        for line in buf.rstrip().splitlines():
+            self.logger.log(self.log_level, line.rstrip())
+
+    def flush(self):
+        pass
 
 class JobProcess(multiprocessing.Process):
     def __init__(self, name, job):
@@ -67,8 +79,16 @@ class JobProcess(multiprocessing.Process):
         self.job = job
 
     def run(self):
+        thread_logger = logging.getLogger(self.name)
+        thread_logger.setLevel(logging.DEBUG)  # logging level
+        thread_handler = TimedRotatingFileHandler(log_path + self.name + ".log", when='W0', backupCount=20, utc=True)  # rotating handler
+        thread_handler.setLevel(logging.DEBUG)  # handler log level
+        thread_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))  # log file format
+        thread_logger.addHandler(thread_handler)
+        sys.stdout = StreamToLogger(thread_logger, logging.INFO)
+        sys.stderr = StreamToLogger(thread_logger, logging.ERROR)
+        thread_logger.info("Starting " + self.name + "...")
         self.job.main()
-
 
 def schedule():
     times = {}
