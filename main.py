@@ -30,7 +30,7 @@ import logging
 from logging.handlers import TimedRotatingFileHandler
 import time
 import crontab
-import threading
+import multiprocessing
 import yaml
 
 # Setup log file
@@ -59,9 +59,10 @@ for i in range(len(config["scripts"])):
     schedules[config["scripts"][i]["name"]] = config["scripts"][i]["schedule"]
 
 
-class JobThread(threading.Thread):
-    def __init__(self, job):
-        super(JobThread, self).__init__()
+class JobProcess(multiprocessing.Process):
+    def __init__(self, name, job):
+        super(JobProcess, self).__init__()
+        self.name = name
         self.daemon = True
         self.job = job
 
@@ -96,12 +97,12 @@ def main():
         for job_name in things_to_queue:
             if running[job_name] is None:  # not running
                 logger.info('Starting %s...' % job_name)
-                running[job_name] = JobThread(jobs[job_name])
+                running[job_name] = JobProcess(job_name, jobs[job_name])
                 running[job_name].start()
-            elif running[job_name].isAlive() is False:
+            elif running[job_name].is_alive() is False:
                 running[job_name] = None
                 logger.info('Starting %s...' % job_name)
-                running[job_name] = JobThread(jobs[job_name])
+                running[job_name] = JobProcess(job_name, jobs[job_name])
                 running[job_name].start()
             else:
                 logger.info('Not starting %s, already running' % job_name)
