@@ -1,2 +1,2 @@
-pywikibot
-pyyaml
+PyYAML==3.11
+pywikibot==2.0rc3
