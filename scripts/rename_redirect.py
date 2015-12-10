@@ -71,12 +71,11 @@ class RedirectBot(Bot):
             pywikibot.error(u"%s doesn't exist." % old_redirect.title())
             return
 
-        print("%s was found. Proceeding..." % old_redirect.title())
-        print(destination.title())
+        pywikibot.output("%s was found. Proceeding..." % old_redirect.title())
+        pywikibot.output("Target: %s" % destination.title())
 
         try:  # Handle double redirects
             destination = destination.getRedirectTarget()
-            print(destination.title())
             pywikibot.output(u"%s points to another redirect. Going to resolve the double redirect." % old_redirect.title())
             try:
                 destination.get()
@@ -87,7 +86,7 @@ class RedirectBot(Bot):
             pass
 
         try:  # Handle new redirect
-            new_redirect_target = new_redirect.getRedirectTarget()
+            new_redirect_target = new_redirect.getRedirectTarget().title()
             if(new_redirect_target == destination.title()):
                 pywikibot.output(u"%s is a redirect and already points to the correct target." % new_redirect.title())
             else:
@@ -113,7 +112,7 @@ class RedirectBot(Bot):
         link_pattern = re.compile(
             r'(?<=\[\[)(?P<title>.*?)(?:#(?P<section>.*?))?(?:\|.*?)?(?=\]\])')
         for page in generator:
-            print("Working on: %s" % page.title())
+            pywikibot.output("Working on: %s" % page.title())
             old_text = page.text
             curpos = 0
             while True:
