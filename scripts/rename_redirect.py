@@ -130,7 +130,7 @@ class RedirectBot(Bot):
                     continue
                 if title == old_redirect.title():
                     page.text = page.text[0:match.start('title')] + new_redirect.title() + page.text[match.end('title'):len(page.text)]
-                curpos  = match.end('title') + (len(page.text[0:match.start('title')] + new_redirect.title() + page.text[match.end('title'):len(page.text)]) - len(old_text))
+                curpos = match.end('title') + (len(page.text[0:match.start('title')] + new_redirect.title() + page.text[match.end('title'):len(page.text)]) - len(old_text))
 
             pywikibot.showDiff(old_text, page.text)
             if not page.botMayEdit():  # Explicit call just to be safe
