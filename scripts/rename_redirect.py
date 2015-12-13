@@ -57,6 +57,7 @@ class RedirectBot(Bot):
         super(RedirectBot, self).__init__(**kwargs)
         self.site = pywikibot.Site()
         self.summary = summary
+        self.page_list = {}
 
     def init_redirects(self, old_redirect, new_redirect):
         try:  # Verify redirect target
@@ -114,6 +115,12 @@ class RedirectBot(Bot):
         link_pattern = re.compile(
             r'(?<=\[\[)(?P<title>.*?)(?:#(?P<section>.*?))?(?:\|.*?)?(?=\]\])')
         for page in generator:
+            # Try to get page object if it is already in page_list
+            try:
+                page = self.page_list[page.title()]
+            except KeyError:
+                pass
+
             pywikibot.output("Working on: %s" % page.title())
             old_text = page.text
             curpos = 0
@@ -132,13 +139,8 @@ class RedirectBot(Bot):
                     page.text = page.text[0:match.start('title')] + new_redirect.title() + page.text[match.end('title'):len(page.text)]
                 curpos = match.end('title') + (len(page.text[0:match.start('title')] + new_redirect.title() + page.text[match.end('title'):len(page.text)]) - len(old_text))
 
-            pywikibot.showDiff(old_text, page.text)
-            if not page.botMayEdit():  # Explicit call just to be safe
-                raise pywikibot.OtherPageSaveError(page, "Editing restricted by {{bots}} template")
-            if(self.summary):
-                page.save(self.summary)
-            else:
-                page.save(u"Fix link to old redirect after redirect was moved")
+            if(page.text != old_text):
+                self.page_list[page.title()] = page
 
     def run(self, redirects):
         for old_redirect_title, new_redirect_title in redirects:
@@ -148,6 +150,15 @@ class RedirectBot(Bot):
             self.init_redirects(old_redirect, new_redirect)
             self.fix_links(old_redirect, new_redirect)
 
+        for page_title,page in self.page_list.iteritems():
+            current_page = pywikibot.Page(self.site, page_title)
+            pywikibot.showDiff(current_page.text, page.text)
+            if not page.botMayEdit():  # Explicit call just to be safe
+                raise pywikibot.OtherPageSaveError(page, "Editing restricted by {{bots}} template")
+            if(self.summary):
+                page.save(self.summary)
+            else:
+                page.save(u"Fix link to old redirect after redirect was moved")
 
 def main(*args):
     redirectfile = None
