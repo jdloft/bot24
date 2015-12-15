@@ -59,24 +59,36 @@ class LinkLog():
         if os.path.exists(os.path.abspath(file)) and os.path.getsize(file) > 0:
             pywikibot.output("Link log exists. Log items will be appended.")
             self.log = open(os.path.abspath(file), 'a')
-            self.log.write("\n\n----------------------------------------")
+            self.log.write("\n\n========================================")
             self.log.write("\nStarted run on: " + time.strftime("%c"))
         else:
             pywikibot.output("Using %s as the link log." % file)
             self.log = open(os.path.abspath(file), 'w')
             self.log.write("Started run on: " + time.strftime("%c"))
 
+    def new_section(self, old_redirect, new_redirect, target):
+        self.log.write("\n\n----------------------------------------" +
+                       "\nOld redirect: " + old_redirect +
+                       "\nNew redirect: " + new_redirect +
+                       "\nTarget: " + target)
+
     def new_page(self, title):
         self.log.write("\n\nPage: " + title)
 
     def replaced_links(self, count, reason):
-        self.log.write("\n    " + str(count) + " links replaced: " + reason)
+        if(count == 1):
+            self.log.write("\n    " + str(count) + " link replaced: " + reason)
+        else:
+            self.log.write("\n    " + str(count) + " links replaced: " + reason)
 
     def skipped_links(self, count, reason):
-        self.log.write("\n    " + str(count) + " links skipped: " + reason)
+        if(count == 1):
+            self.log.write("\n    " + str(count) + " link skipped: " + reason)
+        else:
+            self.log.write("\n    " + str(count) + " links skipped: " + reason)
 
     def finish(self):
-        self.log.write("\n")
+        self.log.write("\n\nFinished run on: " + time.strftime("%c") + "\n")
         self.log.close()
 
 class RedirectBot(Bot):
@@ -151,8 +163,11 @@ class RedirectBot(Bot):
                     else:
                         pywikibot.error("A page creation conflict has occured at %s. Retrying..." % new_redirect.title())
                         self.init_redirects(old_redirect, new_redirect, fail_creation_conflict=True)
+        self.link_log.new_section(old_redirect.title(), new_redirect.title(), destination)
 
     def fix_links(self, old_redirect, new_redirect, page):
+        replaced = 0
+        skipped = 0
         old_text = page.text
         link_pattern = re.compile(
             r'(?<=\[\[)(?P<title>.*?)(?:#(?P<section>.*?))?(?:\|.*?)?(?=\]\])')
@@ -173,7 +188,11 @@ class RedirectBot(Bot):
                         continue
                     if title == old_redirect.title():
                         page.text = page.text[0:match.start('title')] + new_redirect.title() + page.text[match.end('title'):len(page.text)]
+                        replaced += 1
                     curpos = match.end('title') + (len(page.text[0:match.start('title')] + new_redirect.title() + page.text[match.end('title'):len(page.text)]) - len(old_text))
+                if(replaced > 0):
+                    self.link_log.new_page(page.title())
+                    self.link_log.replaced_links(replaced, "page is a list.")
         elif(page.namespace() == 10):
             curpos = 0
             while True:
@@ -189,7 +208,11 @@ class RedirectBot(Bot):
                     continue
                 if title == old_redirect.title():
                     page.text = page.text[0:match.start('title')] + new_redirect.title() + page.text[match.end('title'):len(page.text)]
+                    replaced += 1
                 curpos = match.end('title') + (len(page.text[0:match.start('title')] + new_redirect.title() + page.text[match.end('title'):len(page.text)]) - len(old_text))
+            if(replaced > 0):
+                self.link_log.new_page(page.title())
+                self.link_log.replaced_links(replaced, "page is in the template namespace.")
 
     def run(self):
         for old_redirect, new_redirect in self.redirects:
@@ -304,6 +327,7 @@ def main(*args):
 
     bot = RedirectBot(summary, redirects, fix_double_redirects, link_log, gen_factory)
     bot.run()
+    link_log.finish()
 
 if __name__ == "__main__":
     main()
