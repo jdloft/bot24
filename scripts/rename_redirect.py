@@ -112,7 +112,7 @@ class RedirectBot(Bot):
                 new_redirect.text = u"#REDIRECT [[%s]]" % destination.title()
                 pywikibot.showDiff(old_text, new_redirect.text)
                 if not new_redirect.botMayEdit():  # Explicit call just to be safe
-                    raise pywikibot.OtherPageSaveError(new_redirect, "Editing restricted by {{bots}} template")
+                    pywikibot.error("Editing restricted by {{bots}} template on %s." % new_redirect.title())
 
                 try:
                     new_redirect.save(self.summary)
@@ -167,7 +167,7 @@ class RedirectBot(Bot):
                 while(edit_try <= 3):
                     pywikibot.showDiff(original_text, page.text)
                     if not page.botMayEdit():  # Explicit call just to be safe
-                        raise pywikibot.OtherPageSaveError(page, "Editing restricted by {{bots}} template on %s! Skipping..." % page.title())
+                        pywikibot.error("Editing restricted by {{bots}} template on %s." % page.title())
 
                     try:
                         page.save(self.summary)
