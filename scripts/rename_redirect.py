@@ -53,7 +53,7 @@ docuReplacements = {
 
 
 class RedirectBot(Bot):
-    def __init__(self, summary, redirect_titles, **kwargs):
+    def __init__(self, summary, redirect_titles, gen_factory, **kwargs):
         super(RedirectBot, self).__init__(**kwargs)
         self.site = pywikibot.Site()
         if summary:
@@ -64,6 +64,7 @@ class RedirectBot(Bot):
         for old_redirect_title, new_redirect_title in redirect_titles:
             self.redirects.append((pywikibot.Page(self.site, old_redirect_title),
                                    pywikibot.Page(self.site, new_redirect_title)))
+        self.gen_factory = gen_factory
         self.page_list = {}
 
     def init_redirects(self, old_redirect, new_redirect, fail_creation_conflict=False):
@@ -148,7 +149,7 @@ class RedirectBot(Bot):
         for old_redirect, new_redirect in self.redirects:
             pywikibot.output("Moving %s to %s." % (old_redirect.title(), new_redirect.title()))
             self.init_redirects(old_redirect, new_redirect)
-            generator = old_redirect.getReferences(content=True)
+            generator = self.gen_factory.getCombinedGenerator(gen=old_redirect.getReferences(content=True))
             for page in generator:
                 pywikibot.output("Working on: %s" % page.title())
                 try:
@@ -159,7 +160,6 @@ class RedirectBot(Bot):
 
             for page_title, (original_text, page) in self.page_list.iteritems():
                 if(original_text == page.text):
-                    del self.page_list[page.title()]
                     continue
 
                 pywikibot.output("Saving: %s" % page.title())
@@ -180,7 +180,6 @@ class RedirectBot(Bot):
                             original_text, page = self.page_list
                         else:
                             pywikibot.output("An edit conflict has occurred at %s more than 3 times. Skipping..." % page.title(asLink=True))
-                            del self.page_list[page.title()]
                             break
 
 def main(*args):
@@ -192,6 +191,7 @@ def main(*args):
     redirects = []
 
     local_args = pywikibot.handle_args(args)
+    gen_factory = pagegenerators.GeneratorFactory()
 
     for arg in local_args:
         if arg.startswith("-redirectfile"):
@@ -220,11 +220,14 @@ def main(*args):
                 summary = arg[9:]
         elif arg.startswith("-nofixdredirects"):
             fix_double_redirects = False
+        else:
+            gen_factory.handleArg(arg)
+
     if redirectfile and (oldredirect or newredirect):
         pywikibot.output("Not using redirect file due to old redirect or new redirect being set.")
     if redirectfile and not oldredirect and not newredirect:
         with codecs.open(redirectfile, 'r', config.textfile_encoding) as f:
-            for line in f.readlines():
+            for line in f.readlines():  # TODO: Add line numbers to output
                 if(line.startswith("#")):
                     continue
                 try:
@@ -239,7 +242,13 @@ def main(*args):
                             pywikibot.error("Redirect file contains an invalid tuple!")
                     else:
                         pywikibot.error("Redirect file contains a line that isn't a tuple!")
-    bot = RedirectBot(summary, redirects)
+    elif oldredirect and newredirect:
+        redirects.append((oldredirect, newredirect))
+    elif oldredirect or newredirect:
+        pywikibot.error("Only one of -oldredirect or -newredirect was set.")
+        return
+
+    bot = RedirectBot(summary, redirects, gen_factory)
     bot.run()
 
 if __name__ == "__main__":
