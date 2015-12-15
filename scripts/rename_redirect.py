@@ -53,10 +53,17 @@ docuReplacements = {
 
 
 class RedirectBot(Bot):
-    def __init__(self, summary, **kwargs):
+    def __init__(self, summary, redirect_titles, **kwargs):
         super(RedirectBot, self).__init__(**kwargs)
         self.site = pywikibot.Site()
-        self.summary = summary
+        if summary:
+            self.summary = summary
+        else:
+            self.summary = u"Fix link to old redirect after redirect was moved"
+        self.redirects = []
+        for old_redirect_title, new_redirect_title in redirect_titles:
+            self.redirects.append((pywikibot.Page(self.site, old_redirect_title),
+                                   pywikibot.Page(self.site, new_redirect_title)))
         self.page_list = {}
 
     def init_redirects(self, old_redirect, new_redirect):
@@ -110,55 +117,61 @@ class RedirectBot(Bot):
                 else:
                     new_redirect.save(u"Change redirect target to %s for redirect move" % destination.title())
 
-    def fix_links(self, old_redirect, new_redirect):
-        generator = old_redirect.getReferences(content=True)
+    def fix_links(self, old_redirect, new_redirect, page):
         link_pattern = re.compile(
             r'(?<=\[\[)(?P<title>.*?)(?:#(?P<section>.*?))?(?:\|.*?)?(?=\]\])')
-        for page in generator:
-            # Try to get page object if it is already in page_list
-            try:
-                page = self.page_list[page.title()]
-            except KeyError:
-                pass
+        curpos = 0
+        old_text = page.text
+        while True:
+            match = link_pattern.search(page.text, pos=curpos)
+            if not match:
+                break
+            if not match.group('title').strip():
+                curpos = match.end()
+                continue
+            title = match.group('title')
+            if title.startswith("File:") or title.startswith("Category:"):
+                curpos = match.end()
+                continue
+            if title == old_redirect.title():
+                page.text = page.text[0:match.start('title')] + new_redirect.title() + page.text[match.end('title'):len(page.text)]
+            curpos = match.end('title') + (len(page.text[0:match.start('title')] + new_redirect.title() + page.text[match.end('title'):len(page.text)]) - len(old_text))
 
-            pywikibot.output("Working on: %s" % page.title())
-            old_text = page.text
-            curpos = 0
-            while True:
-                match = link_pattern.search(page.text, pos=curpos)
-                if not match:
-                    break
-                if not match.group('title').strip():
-                    curpos = match.end()
-                    continue
-                title = match.group('title')
-                if title.startswith("File:") or title.startswith("Category:"):
-                    curpos = match.end()
-                    continue
-                if title == old_redirect.title():
-                    page.text = page.text[0:match.start('title')] + new_redirect.title() + page.text[match.end('title'):len(page.text)]
-                curpos = match.end('title') + (len(page.text[0:match.start('title')] + new_redirect.title() + page.text[match.end('title'):len(page.text)]) - len(old_text))
+    def run(self):
+        for old_redirect, new_redirect in self.redirects:
+            pywikibot.output("Moving %s to %s." % (old_redirect.title(), new_redirect.title()))
+            #self.init_redirects(old_redirect, new_redirect)
+            generator = old_redirect.getReferences(content=True)
+            for page in generator:
+                pywikibot.output("Working on: %s" % page.title())
+                try:
+                    self.fix_links(old_redirect, new_redirect, self.page_list[page.title()][1])
+                    pywikibot.showDiff(self.page_list[page.title()][0], self.page_list[page.title()][1].text)
+                except KeyError:
+                    self.page_list[page.title()] = (page.text, page)  # Save old page text in tuple, page will be mutated by fix_links
+                    self.fix_links(old_redirect, new_redirect, self.page_list[page.title()][1])
 
-            if(page.text != old_text):
-                self.page_list[page.title()] = page
+            for page_title, (original_text, page) in self.page_list.iteritems():
+                pywikibot.output("Saving: %s" % page.title())
+                edit_try = 1
+                while(edit_try <= 3):
+                    pywikibot.showDiff(original_text, page.text)
+                    if not page.botMayEdit():  # Explicit call just to be safe
+                        raise pywikibot.OtherPageSaveError(page, "Editing restricted by {{bots}} template on %s! Skipping..." % page.title())
 
-    def run(self, redirects):
-        for old_redirect_title, new_redirect_title in redirects:
-            pywikibot.output("Moving %s to %s." % (old_redirect_title, new_redirect_title))
-            old_redirect = pywikibot.Page(self.site, old_redirect_title)  # Get page object from plain title
-            new_redirect = pywikibot.Page(self.site, new_redirect_title)
-            self.init_redirects(old_redirect, new_redirect)
-            self.fix_links(old_redirect, new_redirect)
-
-        for page_title,page in self.page_list.iteritems():
-            current_page = pywikibot.Page(self.site, page_title)
-            pywikibot.showDiff(current_page.text, page.text)
-            if not page.botMayEdit():  # Explicit call just to be safe
-                raise pywikibot.OtherPageSaveError(page, "Editing restricted by {{bots}} template")
-            if(self.summary):
-                page.save(self.summary)
-            else:
-                page.save(u"Fix link to old redirect after redirect was moved")
+                    try:
+                        page.save(self.summary)
+                        break
+                    except pywikibot.EditConflict:
+                        if(edit_try < 3):
+                            pywikibot.output("An edit conflict has occurred at %s. Retrying..." % page.title(asLink=True))
+                            edit_try += 1
+                            self.fix_links(old_redirect, new_redirect, self.page_list[page.title()][1])
+                            original_text, page = self.page_list
+                        else:
+                            pywikibot.output("An edit conflict has occurred at %s more than 3 times. Skipping..." % page.title(asLink=True))
+                            del self.page_list[page.title()]
+                            break
 
 def main(*args):
     redirectfile = None
@@ -216,9 +229,8 @@ def main(*args):
                             pywikibot.error("Redirect file contains an invalid tuple!")
                     else:
                         pywikibot.error("Redirect file contains a line that isn't a tuple!")
-
-    bot = RedirectBot(summary)
-    bot.run(redirects)
+    bot = RedirectBot(summary, redirects)
+    bot.run()
 
 if __name__ == "__main__":
     main()
