@@ -227,19 +227,19 @@ def main(*args):
         pywikibot.output("Not using redirect file due to old redirect or new redirect being set.")
     if redirectfile and not oldredirect and not newredirect:
         with codecs.open(redirectfile, 'r', config.textfile_encoding) as f:
-            for line in f.readlines():  # TODO: Add line numbers to output
+            for line_number, line in enumerate(f.readlines()):
                 if(line.startswith("#")):
                     continue
                 try:
                     line_eval = ast.literal_eval(line)
                 except:
-                    pywikibot.error("Redirect file contains an invalid line!")
+                    pywikibot.error("The redirect file contains an invalid line at line %s." % (line_number + 1))
                 else:
                     if(type(line_eval) == tuple):
                         if(len(line_eval) == 2):
                             redirects.append(line_eval)
                         else:
-                            pywikibot.error("Redirect file contains an invalid tuple!")
+                            pywikibot.error("The redirect file contains an invalid tuple at line %s." % (line_number + 1))
                     else:
                         pywikibot.error("Redirect file contains a line that isn't a tuple!")
     elif oldredirect and newredirect:
