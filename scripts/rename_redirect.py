@@ -165,9 +165,9 @@ class RedirectBot(Bot):
                 while(edit_try <= 3):
                     pywikibot.showDiff(original_text, page.text)
                     if not page.botMayEdit():  # Explicit call just to be safe
-                        pywikibot.error("Editing restricted by {{bots}} template on %s." % page.title())
+                        pywikibot.error("Editing by bots restricted on %s." % page.title())
                     if not page.canBeEdited():
-                        pywikibot.error("Editing protected for this bot on %s." % page.title())
+                        pywikibot.error("Editing protected on %s." % page.title())
 
                     try:
                         page.save(self.summary)
