@@ -42,6 +42,8 @@ __version__ = '$Id$'
 
 import ast
 import codecs
+import os
+import time
 import re
 
 import pywikibot
@@ -52,8 +54,33 @@ docuReplacements = {
 }
 
 
+class LinkLog():
+    def __init__(self, file):
+        if os.path.exists(os.path.abspath(file)) and os.path.getsize(file) > 0:
+            pywikibot.output("Link log exists. Log items will be appended.")
+            self.log = open(os.path.abspath(file), 'a')
+            self.log.write("\n\n----------------------------------------")
+            self.log.write("\nStarted run on: " + time.strftime("%c"))
+        else:
+            pywikibot.output("Using %s as the link log." % file)
+            self.log = open(os.path.abspath(file), 'w')
+            self.log.write("Started run on: " + time.strftime("%c"))
+
+    def new_page(self, title):
+        self.log.write("\n\nPage: " + title)
+
+    def replaced_links(self, count, reason):
+        self.log.write("\n    " + str(count) + " links replaced: " + reason)
+
+    def skipped_links(self, count, reason):
+        self.log.write("\n    " + str(count) + " links skipped: " + reason)
+
+    def finish(self):
+        self.log.write("\n")
+        self.log.close()
+
 class RedirectBot(Bot):
-    def __init__(self, summary, redirect_titles, gen_factory, **kwargs):
+    def __init__(self, summary, redirect_titles, fix_double_redirects, link_log, gen_factory, **kwargs):
         super(RedirectBot, self).__init__(**kwargs)
         self.site = pywikibot.Site()
         if summary:
@@ -64,6 +91,8 @@ class RedirectBot(Bot):
         for old_redirect_title, new_redirect_title in redirect_titles:
             self.redirects.append((pywikibot.Page(self.site, old_redirect_title),
                                    pywikibot.Page(self.site, new_redirect_title)))
+        self.fix_double_redirects = fix_double_redirects
+        self.link_log = link_log
         self.gen_factory = gen_factory
         self.page_list = {}
 
@@ -83,16 +112,17 @@ class RedirectBot(Bot):
         pywikibot.output("%s was found. Proceeding..." % old_redirect.title())
         pywikibot.output("Target: %s" % destination.title())
 
-        try:  # Handle double redirects
-            destination = destination.getRedirectTarget()
-            pywikibot.output(u"%s points to another redirect. Going to resolve the double redirect." % old_redirect.title())
-            try:
-                destination.get()
-            except pywikibot.NoPage:
-                pywikibot.error(u"%s points to a redirect that points to a non-existent page!" % old_redirect.title())
-                return
-        except pywikibot.IsNotRedirectPage:
-            pass
+        if(self.fix_double_redirects):
+            try:  # Handle double redirects
+                destination = destination.getRedirectTarget()
+                pywikibot.output(u"%s points to another redirect. Going to resolve the double redirect." % old_redirect.title())
+                try:
+                    destination.get()
+                except pywikibot.NoPage:
+                    pywikibot.error(u"%s points to a redirect that points to a non-existent page!" % old_redirect.title())
+                    return
+            except pywikibot.IsNotRedirectPage:
+                pass
 
         try:  # Handle new redirect
             new_redirect_target = new_redirect.getRedirectTarget().title()
@@ -206,6 +236,7 @@ def main(*args):
     newredirect = None
     summary = None
     fix_double_redirects = True
+    linklog = None
     redirects = []
 
     local_args = pywikibot.handle_args(args)
@@ -238,6 +269,8 @@ def main(*args):
                 summary = arg[9:]
         elif arg.startswith("-nofixdredirects"):
             fix_double_redirects = False
+        elif arg.startswith("-linklog"):
+            link_log = LinkLog(arg[9:])
         else:
             gen_factory.handleArg(arg)
 
@@ -265,8 +298,11 @@ def main(*args):
     elif oldredirect or newredirect:
         pywikibot.error("Only one of -oldredirect or -newredirect was set.")
         return
+    else:
+        pywikibot.error("None of -oldredirect and -newredirect or -redirectfile specified!")
+        return
 
-    bot = RedirectBot(summary, redirects, gen_factory)
+    bot = RedirectBot(summary, redirects, fix_double_redirects, link_log, gen_factory)
     bot.run()
 
 if __name__ == "__main__":
