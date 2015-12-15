@@ -124,10 +124,28 @@ class RedirectBot(Bot):
 
     def fix_links(self, old_redirect, new_redirect, page):
         old_text = page.text
-        if(page.title().startswith("List of") or page.title().startswith("Channel")):
+        link_pattern = re.compile(
+            r'(?<=\[\[)(?P<title>.*?)(?:#(?P<section>.*?))?(?:\|.*?)?(?=\]\])')
+
+        if(page.namespace() == 0):
+            if(page.title().startswith("List of") or page.title().startswith("Channel")):
+                curpos = 0
+                while True:
+                    match = link_pattern.search(page.text, pos=curpos)
+                    if not match:
+                        break
+                    if not match.group('title').strip():
+                        curpos = match.end()
+                        continue
+                    title = match.group('title')
+                    if title.startswith("File:") or title.startswith("Category:"):
+                        curpos = match.end()
+                        continue
+                    if title == old_redirect.title():
+                        page.text = page.text[0:match.start('title')] + new_redirect.title() + page.text[match.end('title'):len(page.text)]
+                    curpos = match.end('title') + (len(page.text[0:match.start('title')] + new_redirect.title() + page.text[match.end('title'):len(page.text)]) - len(old_text))
+        elif(page.namespace() == 10):
             curpos = 0
-            link_pattern = re.compile(
-                r'(?<=\[\[)(?P<title>.*?)(?:#(?P<section>.*?))?(?:\|.*?)?(?=\]\])')
             while True:
                 match = link_pattern.search(page.text, pos=curpos)
                 if not match:
