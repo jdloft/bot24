@@ -66,7 +66,7 @@ class RedirectBot(Bot):
                                    pywikibot.Page(self.site, new_redirect_title)))
         self.page_list = {}
 
-    def init_redirects(self, old_redirect, new_redirect):
+    def init_redirects(self, old_redirect, new_redirect, fail_creation_conflict=False):
         try:  # Verify redirect target
             destination = old_redirect.getRedirectTarget()
         except pywikibot.IsNotRedirectPage:
@@ -112,10 +112,15 @@ class RedirectBot(Bot):
                 pywikibot.showDiff(old_text, new_redirect.text)
                 if not new_redirect.botMayEdit():  # Explicit call just to be safe
                     raise pywikibot.OtherPageSaveError(new_redirect, "Editing restricted by {{bots}} template")
-                if(self.summary):
+                try:
                     new_redirect.save(self.summary)
-                else:
-                    new_redirect.save(u"Change redirect target to %s for redirect move" % destination.title())
+                except pywikibot.PageCreatedConflict:
+                    if fail_creation_conflict:
+                        pywikibot.error("A page creation conflict has occurred at %s. Failing..." % new_redirect.title())
+                        return
+                    else:
+                        pywikibot.error("A page creation conflict has occured at %s. Retrying..." % new_redirect.title())
+                        self.init_redirects(old_redirect, new_redirect, fail_creation_conflict=True)
 
     def fix_links(self, old_redirect, new_redirect, page):
         link_pattern = re.compile(
@@ -140,7 +145,7 @@ class RedirectBot(Bot):
     def run(self):
         for old_redirect, new_redirect in self.redirects:
             pywikibot.output("Moving %s to %s." % (old_redirect.title(), new_redirect.title()))
-            #self.init_redirects(old_redirect, new_redirect)
+            self.init_redirects(old_redirect, new_redirect)
             generator = old_redirect.getReferences(content=True)
             for page in generator:
                 pywikibot.output("Working on: %s" % page.title())
@@ -164,7 +169,7 @@ class RedirectBot(Bot):
                         break
                     except pywikibot.EditConflict:
                         if(edit_try < 3):
-                            pywikibot.output("An edit conflict has occurred at %s. Retrying..." % page.title(asLink=True))
+                            pywikibot.error("An edit conflict has occurred at %s. Retrying..." % page.title(asLink=True))
                             edit_try += 1
                             self.fix_links(old_redirect, new_redirect, self.page_list[page.title()][1])
                             original_text, page = self.page_list
