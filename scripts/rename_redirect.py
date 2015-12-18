@@ -31,9 +31,6 @@ Furthermore, the following command line parameters are supported:
 
     -summary       Summary of the edit made by bot.
 
-    -dry           Suppress changes, but show what would have been
-                   changed.
-
 """
 
 from __future__ import unicode_literals
