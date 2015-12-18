@@ -58,34 +58,32 @@ class LinkLog():
             self.log = codecs.open(os.path.abspath(file), 'a', 'utf-8')
             self.log.write("\n\n========================================")
             self.log.write("\nStarted run on: " + time.strftime("%c"))
+            self.log.write("\nRedirects:")
         else:
             pywikibot.output("Using %s as the link log." % file)
             self.log = codecs.open(os.path.abspath(file), 'w', 'utf-8')
             self.log.write("Started run on: " + time.strftime("%c"))
+            self.log.write("\n\n----------------------------------------" +
+                           "\nRedirects:")
+        self.replaced = {}
+        self.skipped = {}
 
-    def new_section(self, old_redirect, new_redirect, target):
+    def new_redirect(self, old_redirect, new_redirect, target):
+        self.log.write(u"\n" + old_redirect + u" -> " + new_redirect + u" => " + target)
+
+    def save(self):
         self.log.write("\n\n----------------------------------------" +
-                       u"\nOld redirect: " + old_redirect +
-                       u"\nNew redirect: " + new_redirect +
-                       u"\nTarget: " + target)
-
-    def new_page(self, title):
-        self.log.write(u"\n\nPage: " + title)
-
-    def replaced_links(self, count, reason):
-        if(count == 1):
-            self.log.write(u"\n    " + str(count) + " link replaced: " + reason)
-        else:
-            self.log.write(u"\n    " + str(count) + " links replaced: " + reason)
-
-    def skipped_links(self, count, reason):
-        if(count == 1):
-            self.log.write(u"\n    " + str(count) + " link skipped: " + reason)
-        else:
-            self.log.write(u"\n    " + str(count) + " links skipped: " + reason)
-
-    def finish(self):
-        self.log.write("\n\nFinished run on: " + time.strftime("%c") + "\n")
+                       "\nSkipped:")
+        for page_title, count in self.skipped.iteritems():
+            self.log.write(u"\n" + page_title + u":"
+                           u"\n    " + str(count) + u" links skipped")
+        self.log.write("\n\n----------------------------------------" +
+                       "\nReplaced:")
+        for page_title, count in self.replaced.iteritems():
+            self.log.write(u"\n" + page_title + u":"
+                           u"\n    " + str(count) + u" links replaced")
+        self.log.write("\n\n----------------------------------------" +
+                       "\nFinished run on: " + time.strftime("%c") + "\n")
         self.log.close()
 
 
@@ -161,7 +159,7 @@ class RedirectBot(Bot):
                     else:
                         pywikibot.error("A page creation conflict has occured at %s. Retrying..." % new_redirect.title())
                         self.init_redirects(old_redirect, new_redirect, fail_creation_conflict=True)
-        self.link_log.new_section(old_redirect.title(), new_redirect.title(), destination.title())
+        self.link_log.new_redirect(old_redirect.title(), new_redirect.title(), destination.title())
 
     def replace_links(self, to_replace, replacement, text, dry=False):
         replaced = 0
@@ -202,8 +200,10 @@ class RedirectBot(Bot):
             if(page.title().startswith("List of") or page.title().startswith("Channel")):
                 (replaced, page.text) = self.replace_links(old_redirect.title(), new_redirect.title(), page.text)
                 if(replaced > 0):
-                    self.link_log.new_page(page.title())
-                    self.link_log.replaced_links(replaced, "page is a list.")
+                    try:
+                        self.link_log.replaced[page.title()] += replaced
+                    except KeyError:
+                        self.link_log.replaced[page.title()] = replaced
             else:
                 tablepos = 0
                 while True:
@@ -217,17 +217,23 @@ class RedirectBot(Bot):
                     replaced += table_replaced
 
                 skipped = self.replace_links(old_redirect.title(), new_redirect.title(), page.text, True)
-                if(replaced > 0 or skipped > 0):
-                    self.link_log.new_page(page.title())
                 if(replaced > 0):
-                    self.link_log.replaced_links(replaced, "in a table.")
+                    try:
+                        self.link_log.replaced[page.title()] += replaced
+                    except KeyError:
+                        self.link_log.replaced[page.title()] = replaced
                 if(skipped > 0):
-                    self.link_log.skipped_links(skipped, "not in a table and page wasn't a list nor a template.")
+                    try:
+                        self.link_log.skipped[page.title()] += skipped
+                    except KeyError:
+                        self.link_log.skipped[page.title()] = skipped
         else:
             (replaced, page.text) = self.replace_links(old_redirect.title(), new_redirect.title(), page.text)
             if(replaced > 0):
-                self.link_log.new_page(page.title())
-                self.link_log.replaced_links(replaced, "page isn't in the main namespace and no other restrictions were placed on this type of page.")
+                try:
+                    self.link_log.replaced[page.title()] += replaced
+                except KeyError:
+                    self.link_log.replaced[page.title()] = replaced
 
     def run(self):
         for old_redirect, new_redirect in self.redirects:
@@ -347,7 +353,7 @@ def main(*args):
 
     bot = RedirectBot(summary, redirects, fix_double_redirects, link_log, gen_factory)
     bot.run()
-    link_log.finish()
+    link_log.save()
 
 if __name__ == "__main__":
     main()
