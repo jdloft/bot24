@@ -91,6 +91,7 @@ class LinkLog():
         self.log.write("\n\nFinished run on: " + time.strftime("%c") + "\n")
         self.log.close()
 
+
 class RedirectBot(Bot):
     def __init__(self, summary, redirect_titles, fix_double_redirects, link_log, gen_factory, **kwargs):
         super(RedirectBot, self).__init__(**kwargs)
@@ -204,7 +205,7 @@ class RedirectBot(Bot):
                     table_text = table_match.group(0)
                     curpos = 0
                     while True:  # TODO: Make this all into a method
-                        match = link_pattern.search(table_text, pos=linkpos)
+                        match = link_pattern.search(table_text, pos=curpos)
                         if not match:
                             break
                         if not match.group('title').strip():
@@ -212,12 +213,12 @@ class RedirectBot(Bot):
                             continue
                         title = match.group('title')
                         if title.startswith("File:") or title.startswith("Category:"):
-                            linkpos = match.end('title')
+                            curpos = match.end('title')
                             continue
                         if title == old_redirect.title():
                             table_text = table_text[0:match.start('title')] + old_redirect.title() + table_text[match.end('title'):len(table_text)]
-                            linkpos = match.end('title') + (len(table_text) - len(table_match.group(0)))
-                        linkpos = match.end('title')
+                            curpos = match.end('title') + (len(table_text) - len(table_match.group(0)))
+                        curpos = match.end('title')
                     page.text = page.text[0:table_match.start()] + table_text + page.text[match.end():len(page.text)]
                     tablepos = table_match.end() + (len(page.text) - len(old_text))
         elif(page.namespace() == 10):
@@ -280,13 +281,14 @@ class RedirectBot(Bot):
                             pywikibot.output("An edit conflict has occurred at %s more than 3 times. Skipping..." % page.title(asLink=True))
                             break
 
+
 def main(*args):
     redirectfile = None
     oldredirect = None
     newredirect = None
     summary = None
     fix_double_redirects = True
-    linklog = None
+    link_log = None
     redirects = []
 
     local_args = pywikibot.handle_args(args)
