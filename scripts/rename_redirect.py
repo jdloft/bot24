@@ -216,6 +216,32 @@ class RedirectBot(Bot):
                     tablepos = table_match.end() + (len(page.text) - len(old_text))
                     replaced += table_replaced
 
+                tablepos = 0
+                while True:
+                    table_match = page.text.find("{{Mexico TV station table/top}}", tablepos)
+                    table_match_end = page.text.find("|}", table_match)
+                    if(table_match == -1):
+                        break
+                    table_text = page.text[table_match:table_match_end]
+                    (table_replaced, table_text) = self.replace_links(old_redirect.title(), new_redirect.title(), table_text)
+                    page.text = page.text[0:table_match] + table_text + page.text[table_match_end:len(page.text)]
+                    tablepos = table_match_end + (len(page.text) - len(old_text))
+                    print(u"New pos: " + str(tablepos))
+                    replaced += table_replaced
+
+                tablepos = 0
+                while True:
+                    table_match = page.text.find("{{Mexico TV station table/top2}}", tablepos)
+                    table_match_end = page.text.find("|}", table_match)
+                    if(table_match == -1):
+                        break
+                    table_text = page.text[table_match:table_match_end]
+                    (table_replaced, table_text) = self.replace_links(old_redirect.title(), new_redirect.title(), table_text)
+                    page.text = page.text[0:table_match] + table_text + page.text[table_match_end:len(page.text)]
+                    tablepos = table_match_end + (len(page.text) - len(old_text))
+                    print(u"New pos: " + str(tablepos))
+                    replaced += table_replaced
+
                 skipped = self.replace_links(old_redirect.title(), new_redirect.title(), page.text, True)
                 if(replaced > 0):
                     try:
