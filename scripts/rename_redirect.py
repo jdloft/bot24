@@ -76,12 +76,12 @@ class LinkLog():
                        "\nSkipped:")
         for page_title, count in self.skipped.iteritems():
             self.log.write(u"\n" + page_title + u":"
-                           u"\n    " + str(count) + u" links skipped")
+                           u"\n    " + str(count) + u" link(s) skipped")
         self.log.write("\n\n----------------------------------------" +
                        "\nReplaced:")
         for page_title, count in self.replaced.iteritems():
             self.log.write(u"\n" + page_title + u":"
-                           u"\n    " + str(count) + u" links replaced")
+                           u"\n    " + str(count) + u" link(s) replaced")
         self.log.write("\n\n----------------------------------------" +
                        "\nFinished run on: " + time.strftime("%c") + "\n")
         self.log.close()
