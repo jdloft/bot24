@@ -55,34 +55,34 @@ class LinkLog():
     def __init__(self, file):
         if os.path.exists(os.path.abspath(file)) and os.path.getsize(file) > 0:
             pywikibot.output("Link log exists. Log items will be appended.")
-            self.log = open(os.path.abspath(file), 'a')
+            self.log = codecs.open(os.path.abspath(file), 'a', 'utf-8')
             self.log.write("\n\n========================================")
             self.log.write("\nStarted run on: " + time.strftime("%c"))
         else:
             pywikibot.output("Using %s as the link log." % file)
-            self.log = open(os.path.abspath(file), 'w')
+            self.log = codecs.open(os.path.abspath(file), 'w', 'utf-8')
             self.log.write("Started run on: " + time.strftime("%c"))
 
     def new_section(self, old_redirect, new_redirect, target):
         self.log.write("\n\n----------------------------------------" +
-                       "\nOld redirect: " + old_redirect +
-                       "\nNew redirect: " + new_redirect +
-                       "\nTarget: " + target)
+                       u"\nOld redirect: " + old_redirect +
+                       u"\nNew redirect: " + new_redirect +
+                       u"\nTarget: " + target)
 
     def new_page(self, title):
-        self.log.write("\n\nPage: " + title)
+        self.log.write(u"\n\nPage: " + title)
 
     def replaced_links(self, count, reason):
         if(count == 1):
-            self.log.write("\n    " + str(count) + " link replaced: " + reason)
+            self.log.write(u"\n    " + str(count) + " link replaced: " + reason)
         else:
-            self.log.write("\n    " + str(count) + " links replaced: " + reason)
+            self.log.write(u"\n    " + str(count) + " links replaced: " + reason)
 
     def skipped_links(self, count, reason):
         if(count == 1):
-            self.log.write("\n    " + str(count) + " link skipped: " + reason)
+            self.log.write(u"\n    " + str(count) + " link skipped: " + reason)
         else:
-            self.log.write("\n    " + str(count) + " links skipped: " + reason)
+            self.log.write(u"\n    " + str(count) + " links skipped: " + reason)
 
     def finish(self):
         self.log.write("\n\nFinished run on: " + time.strftime("%c") + "\n")
@@ -161,7 +161,7 @@ class RedirectBot(Bot):
                     else:
                         pywikibot.error("A page creation conflict has occured at %s. Retrying..." % new_redirect.title())
                         self.init_redirects(old_redirect, new_redirect, fail_creation_conflict=True)
-        self.link_log.new_section(old_redirect.title(), new_redirect.title(), destination)
+        self.link_log.new_section(old_redirect.title(), new_redirect.title(), destination.title())
 
     def replace_links(self, to_replace, replacement, text, dry=False):
         replaced = 0
