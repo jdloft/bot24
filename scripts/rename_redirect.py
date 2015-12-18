@@ -240,7 +240,6 @@ class RedirectBot(Bot):
                     (table_replaced, table_text) = self.replace_links(old_redirect.title(), new_redirect.title(), table_text)
                     page.text = page.text[0:table_match] + table_text + page.text[table_match_end:len(page.text)]
                     tablepos = table_match_end + (len(page.text) - len(old_text))
-                    print(u"New pos: " + str(tablepos))
                     replaced += table_replaced
 
                 skipped = self.replace_links(old_redirect.title(), new_redirect.title(), page.text, True)
