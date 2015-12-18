@@ -276,7 +276,6 @@ class RedirectBot(Bot):
                     self.page_list[page.title()] = (page.text, page)  # Save old page text in tuple, page will be mutated by fix_links
                     self.fix_links(old_redirect, new_redirect, self.page_list[page.title()][1])
 
-        saved_pages = 0
         for page_title, (original_text, page) in self.page_list.iteritems():
             if(original_text == page.text):
                 continue
