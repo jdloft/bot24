@@ -166,33 +166,44 @@ class RedirectBot(Bot):
                         self.init_redirects(old_redirect, new_redirect, fail_creation_conflict=True)
         self.link_log.new_section(old_redirect.title(), new_redirect.title(), destination)
 
+    def replace_links(self, to_replace, replacement, text, dry=False):
+        replaced = 0
+        old_text = text
+        link_pattern = re.compile(
+            r'(?<=\[\[)(?P<title>.*?)(?:#(?P<section>.*?))?(?:\|.*?)?(?=\]\])')
+        curpos = 0
+
+        while True:
+            match = link_pattern.search(text, pos=curpos)
+            if not match:
+                break
+            if not match.group('title').strip():
+                curpos = match.end()
+                continue
+            title = match.group('title')
+            if title.startswith("File:") or title.startswith("Category:"):
+                curpos = match.end('title')
+                continue
+            if title == to_replace:
+                replaced += 1
+                text = text[0:match.start('title')] + replacement + text[match.end('title'):len(text)]
+                curpos = match.end('title') + (len(text) - len(old_text))
+            curpos = match.end('title')
+        if dry:
+            return replaced
+        else:
+            return (replaced, text)
+
     def fix_links(self, old_redirect, new_redirect, page):
         replaced = 0
         skipped = 0
         old_text = page.text
-        link_pattern = re.compile(
-            r'(?<=\[\[)(?P<title>.*?)(?:#(?P<section>.*?))?(?:\|.*?)?(?=\]\])')
         table = re.compile(
             r'\{\|.*\|\}', flags=re.S)
 
         if(page.namespace() == 0):
             if(page.title().startswith("List of") or page.title().startswith("Channel")):
-                curpos = 0
-                while True:
-                    match = link_pattern.search(page.text, pos=curpos)
-                    if not match:
-                        break
-                    if not match.group('title').strip():
-                        curpos = match.end()
-                        continue
-                    title = match.group('title')
-                    if title.startswith("File:") or title.startswith("Category:"):
-                        curpos = match.end('title')
-                        continue
-                    if title == old_redirect.title():
-                        page.text = page.text[0:match.start('title')] + new_redirect.title() + page.text[match.end('title'):len(page.text)]
-                        replaced += 1
-                    curpos = match.end() + (len(page.text) - len(old_text))
+                (replaced, page.text) = self.replace_links(old_redirect.title(), new_redirect.title(), page.text)
                 if(replaced > 0):
                     self.link_log.new_page(page.title())
                     self.link_log.replaced_links(replaced, "page is a list.")
@@ -203,44 +214,23 @@ class RedirectBot(Bot):
                     if not table_match:
                         break
                     table_text = table_match.group(0)
-                    curpos = 0
-                    while True:  # TODO: Make this all into a method
-                        match = link_pattern.search(table_text, pos=curpos)
-                        if not match:
-                            break
-                        if not match.group('title').strip():
-                            curpos = match.end()
-                            continue
-                        title = match.group('title')
-                        if title.startswith("File:") or title.startswith("Category:"):
-                            curpos = match.end('title')
-                            continue
-                        if title == old_redirect.title():
-                            table_text = table_text[0:match.start('title')] + old_redirect.title() + table_text[match.end('title'):len(table_text)]
-                            curpos = match.end('title') + (len(table_text) - len(table_match.group(0)))
-                        curpos = match.end('title')
-                    page.text = page.text[0:table_match.start()] + table_text + page.text[match.end():len(page.text)]
+                    (table_replaced, table_text) = self.replace_links(old_redirect.title(), new_redirect.title(), table_text)
+                    page.text = page.text[0:table_match.start()] + table_text + page.text[table_match.end():len(page.text)]
                     tablepos = table_match.end() + (len(page.text) - len(old_text))
-        elif(page.namespace() == 10):
-            curpos = 0
-            while True:
-                match = link_pattern.search(page.text, pos=curpos)
-                if not match:
-                    break
-                if not match.group('title').strip():
-                    curpos = match.end()
-                    continue
-                title = match.group('title')
-                if title.startswith("File:") or title.startswith("Category:"):
-                    curpos = match.end()
-                    continue
-                if title == old_redirect.title():
-                    page.text = page.text[0:match.start('title')] + new_redirect.title() + page.text[match.end('title'):len(page.text)]
-                    replaced += 1
-                curpos = match.end() + (len(page.text) - len(old_text))
+                    replaced += table_replaced
+
+                skipped = self.replace_links(old_redirect.title(), new_redirect.title(), page.text, True)
+                if(replaced > 0 or skipped > 0):
+                    self.link_log.new_page(page.title())
+                if(replaced > 0):
+                    self.link_log.replaced_links(replaced, "in a table.")
+                if(skipped > 0):
+                    self.link_log.skipped_links(skipped, "not in a table and page wasn't a list nor a template.")
+        else:
+            (replaced, page.text) = self.replace_links(old_redirect.title(), new_redirect.title(), page.text)
             if(replaced > 0):
                 self.link_log.new_page(page.title())
-                self.link_log.replaced_links(replaced, "page is in the template namespace.")
+                self.link_log.replaced_links(replaced, "page isn't in the main namespace and no other restrictions were placed on this type of page.")
 
     def run(self):
         for old_redirect, new_redirect in self.redirects:
