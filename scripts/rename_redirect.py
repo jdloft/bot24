@@ -171,6 +171,8 @@ class RedirectBot(Bot):
         old_text = page.text
         link_pattern = re.compile(
             r'(?<=\[\[)(?P<title>.*?)(?:#(?P<section>.*?))?(?:\|.*?)?(?=\]\])')
+        table = re.compile(
+            r'\{\|.*\|\}', flags=re.S)
 
         if(page.namespace() == 0):
             if(page.title().startswith("List of") or page.title().startswith("Channel")):
@@ -184,15 +186,40 @@ class RedirectBot(Bot):
                         continue
                     title = match.group('title')
                     if title.startswith("File:") or title.startswith("Category:"):
-                        curpos = match.end()
+                        curpos = match.end('title')
                         continue
                     if title == old_redirect.title():
                         page.text = page.text[0:match.start('title')] + new_redirect.title() + page.text[match.end('title'):len(page.text)]
                         replaced += 1
-                    curpos = match.end('title') + (len(page.text[0:match.start('title')] + new_redirect.title() + page.text[match.end('title'):len(page.text)]) - len(old_text))
+                    curpos = match.end() + (len(page.text) - len(old_text))
                 if(replaced > 0):
                     self.link_log.new_page(page.title())
                     self.link_log.replaced_links(replaced, "page is a list.")
+            else:
+                tablepos = 0
+                while True:
+                    table_match = table.search(page.text, pos=tablepos)
+                    if not table_match:
+                        break
+                    table_text = table_match.group(0)
+                    curpos = 0
+                    while True:  # TODO: Make this all into a method
+                        match = link_pattern.search(table_text, pos=linkpos)
+                        if not match:
+                            break
+                        if not match.group('title').strip():
+                            curpos = match.end()
+                            continue
+                        title = match.group('title')
+                        if title.startswith("File:") or title.startswith("Category:"):
+                            linkpos = match.end('title')
+                            continue
+                        if title == old_redirect.title():
+                            table_text = table_text[0:match.start('title')] + old_redirect.title() + table_text[match.end('title'):len(table_text)]
+                            linkpos = match.end('title') + (len(table_text) - len(table_match.group(0)))
+                        linkpos = match.end('title')
+                    page.text = page.text[0:table_match.start()] + table_text + page.text[match.end():len(page.text)]
+                    tablepos = table_match.end() + (len(page.text) - len(old_text))
         elif(page.namespace() == 10):
             curpos = 0
             while True:
@@ -209,7 +236,7 @@ class RedirectBot(Bot):
                 if title == old_redirect.title():
                     page.text = page.text[0:match.start('title')] + new_redirect.title() + page.text[match.end('title'):len(page.text)]
                     replaced += 1
-                curpos = match.end('title') + (len(page.text[0:match.start('title')] + new_redirect.title() + page.text[match.end('title'):len(page.text)]) - len(old_text))
+                curpos = match.end() + (len(page.text) - len(old_text))
             if(replaced > 0):
                 self.link_log.new_page(page.title())
                 self.link_log.replaced_links(replaced, "page is in the template namespace.")
@@ -293,7 +320,11 @@ def main(*args):
         elif arg.startswith("-nofixdredirects"):
             fix_double_redirects = False
         elif arg.startswith("-linklog"):
-            link_log = LinkLog(arg[9:])
+            if len(arg) == 8:
+                link_log = pywikibot.input(
+                    u'What file would you like to use for the link log?')
+            else:
+                link_log = LinkLog(arg[9:])
         else:
             gen_factory.handleArg(arg)
 
