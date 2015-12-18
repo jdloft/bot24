@@ -242,31 +242,31 @@ class RedirectBot(Bot):
                     self.page_list[page.title()] = (page.text, page)  # Save old page text in tuple, page will be mutated by fix_links
                     self.fix_links(old_redirect, new_redirect, self.page_list[page.title()][1])
 
-            for page_title, (original_text, page) in self.page_list.iteritems():
-                if(original_text == page.text):
-                    continue
+        for page_title, (original_text, page) in self.page_list.iteritems():
+            if(original_text == page.text):
+                continue
 
-                pywikibot.output("Saving: %s" % page.title())
-                edit_try = 1
-                while(edit_try <= 3):
-                    pywikibot.showDiff(original_text, page.text)
-                    if not page.botMayEdit():  # Explicit call just to be safe
-                        pywikibot.error("Editing by bots restricted on %s." % page.title())
-                    if not page.canBeEdited():
-                        pywikibot.error("Editing protected on %s." % page.title())
+            pywikibot.output("Saving: %s" % page.title())
+            edit_try = 1
+            while(edit_try <= 3):
+                pywikibot.showDiff(original_text, page.text)
+                if not page.botMayEdit():  # Explicit call just to be safe
+                    pywikibot.error("Editing by bots restricted on %s." % page.title())
+                if not page.canBeEdited():
+                    pywikibot.error("Editing protected on %s." % page.title())
 
-                    try:
-                        page.save(self.summary)
+                try:
+                    page.save(self.summary)
+                    break
+                except pywikibot.EditConflict:
+                    if(edit_try < 3):
+                        pywikibot.error("An edit conflict has occurred at %s. Retrying..." % page.title(asLink=True))
+                        edit_try += 1
+                        self.fix_links(old_redirect, new_redirect, self.page_list[page.title()][1])
+                        original_text, page = self.page_list
+                    else:
+                        pywikibot.output("An edit conflict has occurred at %s more than 3 times. Skipping..." % page.title(asLink=True))
                         break
-                    except pywikibot.EditConflict:
-                        if(edit_try < 3):
-                            pywikibot.error("An edit conflict has occurred at %s. Retrying..." % page.title(asLink=True))
-                            edit_try += 1
-                            self.fix_links(old_redirect, new_redirect, self.page_list[page.title()][1])
-                            original_text, page = self.page_list
-                        else:
-                            pywikibot.output("An edit conflict has occurred at %s more than 3 times. Skipping..." % page.title(asLink=True))
-                            break
 
 
 def main(*args):
