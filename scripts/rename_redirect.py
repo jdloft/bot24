@@ -297,7 +297,8 @@ class RedirectBot(Bot):
                         pywikibot.error("An edit conflict has occurred at %s. Retrying..." % page.title(asLink=True))
                         edit_try += 1
                         self.fix_links(old_redirect, new_redirect, self.page_list[page.title()][1])
-                        original_text, page = self.page_list
+                        original_text = self.page_list[0]
+                        page = self.page_list[1]
                     else:
                         pywikibot.output("An edit conflict has occurred at %s more than 3 times. Skipping..." % page.title(asLink=True))
                         break
