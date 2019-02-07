@@ -65,7 +65,6 @@ class JobThread(threading.Thread):
         self.daemon = True
         self.job = job
 
-
     def run(self):
         self.job.main()
 
@@ -77,8 +76,8 @@ def schedule():
         times[time.time() + ctab.next()] = job_name
     return times
 
-running = {}
 
+running = {}
 
 def main():
     for job_name, job in jobs.iteritems():
