@@ -65,6 +65,7 @@ class JobThread(threading.Thread):
         self.daemon = True
         self.job = job
 
+
     def run(self):
         self.job.main()
 
@@ -105,6 +106,7 @@ def main():
                 running[job_name].start()
             else:
                 logger.info('Not starting %s, already running' % job_name)
+
 
 if __name__ == '__main__':
     main()

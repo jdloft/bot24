@@ -63,8 +63,8 @@ class LinkLog():
             pywikibot.output("Using %s as the link log." % file)
             self.log = codecs.open(os.path.abspath(file), 'w', 'utf-8')
             self.log.write("Started run on: " + time.strftime("%c"))
-            self.log.write("\n\n----------------------------------------" +
-                           "\nRedirects:")
+            self.log.write("\n\n----------------------------------------"
+                           + "\nRedirects:")
         self.replaced = {}
         self.skipped = {}
 
@@ -72,18 +72,18 @@ class LinkLog():
         self.log.write(u"\n" + old_redirect + u" -> " + new_redirect + u" => " + target)
 
     def save(self):
-        self.log.write("\n\n----------------------------------------" +
-                       "\nSkipped:")
+        self.log.write("\n\n----------------------------------------"
+                       + "\nSkipped:")
         for page_title, count in self.skipped.iteritems():
             self.log.write(u"\n" + page_title + u":"
                            u"\n    " + str(count) + u" link(s) skipped")
-        self.log.write("\n\n----------------------------------------" +
-                       "\nReplaced:")
+        self.log.write("\n\n----------------------------------------"
+                       + "\nReplaced:")
         for page_title, count in self.replaced.iteritems():
             self.log.write(u"\n" + page_title + u":"
                            u"\n    " + str(count) + u" link(s) replaced")
-        self.log.write("\n\n----------------------------------------" +
-                       "\nFinished run on: " + time.strftime("%c") + "\n")
+        self.log.write("\n\n----------------------------------------"
+                       + "\nFinished run on: " + time.strftime("%c") + "\n")
         self.log.close()
 
 
@@ -362,7 +362,7 @@ def main(*args):
                     continue
                 try:
                     line_eval = ast.literal_eval(line)
-                except:
+                except ValueError:
                     pywikibot.error("The redirect file contains an invalid line at line %s." % (line_number + 1))
                 else:
                     if(type(line_eval) == tuple):
@@ -384,6 +384,7 @@ def main(*args):
     bot = RedirectBot(summary, redirects, fix_double_redirects, link_log, gen_factory)
     bot.run()
     link_log.save()
+
 
 if __name__ == "__main__":
     main()
